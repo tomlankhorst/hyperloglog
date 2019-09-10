@@ -7,8 +7,6 @@
 #include <random>
 #include <limits>
 
-#include <iostream>
-
 #include "MurmurHash3.h"
 
 namespace GotStd {
