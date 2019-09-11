@@ -10,8 +10,9 @@
 #include "MurmurHash3.h"
 
 namespace GotStd {
+
 template <typename T_, size_t B_ = 4> class HyperLogLog {
-  static_assert(B_ >= 4 && B_ < 16);
+  static_assert(B_ >= 4 && B_ < 16, "Bucket bit-width expected between 4 and 16");
   static constexpr size_t m() { return 1ULL << B_; }
   static constexpr float alpha() {
     switch (m()) {
@@ -27,29 +28,32 @@ template <typename T_, size_t B_ = 4> class HyperLogLog {
   }
   std::array<uint32_t, m()> M_ = {0};
 
-public:
-  [[nodiscard]] inline float E() const noexcept {
-    constexpr auto m2a = m() * m() * alpha();
-    return m2a * Z();
-  }
-  [[nodiscard]] inline float Estar() const noexcept {
-    auto En = E();
-    if (2 * En < 5 * m()) {
-      // small E optimize
-      auto V = std::count(M_.cbegin(), M_.cend(), 0);
-      return V > 0 ? m() * std::log(1.0f * m() / V) : En;
-    } else if (En > std::pow(2.f, 32) / 30) {
-      // large E optimize
-      return std::pow(-2.f, 32) * std::log(1.f - En / std::pow(2.f, 32));
-    }
-    return En;
-  }
   [[nodiscard]] inline float Z() const noexcept {
     auto a = std::accumulate(
         M_.cbegin(), M_.cend(), 0.0,
         [](const double &a, double b) { return a + std::pow(2, -b); });
     return 1.0 / a;
   }
+
+  [[nodiscard]] inline float En() const noexcept {
+    constexpr auto m2a = m() * m() * alpha();
+    return m2a * Z();
+  }
+
+public:
+  [[nodiscard]] inline float E() const noexcept {
+    auto E = En();
+    if (2 * En() < 5 * m()) {
+      // small E optimize
+      auto V = std::count(M_.cbegin(), M_.cend(), 0);
+      E = V > 0 ? m() * std::log(1.0f * m() / V) : E;
+    } else if (E > std::pow(2.f, 32) / 30) {
+      // large E optimize
+      E = std::pow(-2.f, 32) * std::log(1.f - E / std::pow(2.f, 32));
+    }
+    return E;
+  }
+
   inline void log(const T_ &v) noexcept {
     uint32_t h;
     MurmurHash3_x86_32(&v, sizeof(v), 0xbeef, &h);
@@ -61,6 +65,7 @@ public:
       a = b;
     }
   }
+
   [[nodiscard]] auto buckets() const noexcept -> const auto & { return M_; }
 
   void merge(const HyperLogLog<T_, B_> &with) noexcept {

@@ -14,6 +14,6 @@ auto main() -> int {
 
   hll.merge(hll2);
 
-  return static_cast<int8_t >(hll.Estar());
+  return static_cast<int8_t >(hll.E());
 
 }
